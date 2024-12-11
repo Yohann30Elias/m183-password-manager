@@ -19,10 +19,5 @@ Ein sicherer Passwort-Manager, der Passwörter verschlüsselt speichert und nur 
 - OWASP Top Ten Sicherheitsrichtlinien beachtet.
 
 ## Installation
-1. Klonen Sie das Repository.
-2. Installieren Sie die Abhängigkeiten für Frontend und Backend.
-3. Starten Sie das Backend mit Spring Boot.
-4. Starten Sie das Frontend mit React.
 
-## Lizenz
-MIT
+incoming
