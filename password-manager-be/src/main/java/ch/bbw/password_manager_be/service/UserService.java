@@ -26,4 +26,8 @@ public class UserService {
         return userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
     }
+
+    public boolean checkPassword(String rawPassword, String encodedPassword) {
+        return passwordEncoder.matches(rawPassword, encodedPassword);
+    }
 }
