@@ -2,141 +2,180 @@ import React, { useState } from 'react';
 import './App.css';
 
 function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [passwords, setPasswords] = useState([
-    { id: 1, site: 'Google', username: 'user@gmail.com', password: 'google123', isFavorite: false, isTrash: false },
-    { id: 2, site: 'Facebook', username: 'user@fb.com', password: 'facebook456', isFavorite: false, isTrash: false },
-  ]);
-  const [activeCategory, setActiveCategory] = useState('all');
+    const [isLoggedIn, setIsLoggedIn] = useState(false);
+    const [passwords, setPasswords] = useState([
+        { id: 1, site: 'Google', username: 'user@gmail.com', password: 'google123', isFavorite: false, isTrash: false },
+        { id: 2, site: 'Facebook', username: 'user@fb.com', password: 'facebook456', isFavorite: false, isTrash: false },
+    ]);
+    const [activeCategory, setActiveCategory] = useState('all');
+    const [showAddModal, setShowAddModal] = useState(false);
 
-  const handleLogin = (event) => {
-    event.preventDefault();
-    setIsLoggedIn(true);
-  };
-
-  if (!isLoggedIn) {
-    return <LoginPage onLogin={handleLogin} />;
-  }
-
-  const handleAdd = () => {
-    const newPass = {
-      id: passwords.length + 1,
-      site: 'New Site',
-      username: 'user@new.com',
-      password: 'newpass789',
-      isFavorite: false,
-      isTrash: false
+    const handleLogin = (event) => {
+        event.preventDefault();
+        setIsLoggedIn(true);
     };
-    setPasswords([...passwords, newPass]);
-  };
 
-  const toggleFavorite = (id) => {
-    setPasswords(passwords.map(pass =>
-        pass.id === id ? { ...pass, isFavorite: !pass.isFavorite } : pass
-    ));
-  };
+    const handleAdd = (newPass) => {
+        const updatedPasswords = [
+            ...passwords,
+            { ...newPass, id: passwords.length + 1, isFavorite: false, isTrash: false }
+        ];
+        setPasswords(updatedPasswords);
+        setShowAddModal(false);
+    };
 
-  const toggleTrash = (id) => {
-    setPasswords(passwords.map(pass =>
-        pass.id === id ? { ...pass, isTrash: !pass.isTrash } : pass
-    ));
-  };
+    const handleDelete = (id) => {
+        setPasswords(passwords.filter(pass => pass.id !== id));
+    };
 
-  const filteredPasswords = passwords.filter(pass => {
-    if (activeCategory === 'favorites') return pass.isFavorite && !pass.isTrash;
-    if (activeCategory === 'trash') return pass.isTrash;
-    return !pass.isTrash;
-  });
+    const toggleFavorite = (id) => {
+        setPasswords(passwords.map(pass =>
+            pass.id === id ? { ...pass, isFavorite: !pass.isFavorite, isTrash: false } : pass
+        ));
+    };
 
-  return (
-      <Dashboard
-          passwords={filteredPasswords}
-          onAdd={handleAdd}
-          onToggleFavorite={toggleFavorite}
-          onToggleTrash={toggleTrash}
-          activeCategory={activeCategory}
-          setActiveCategory={setActiveCategory}
-      />
-  );
+    const toggleTrash = (id) => {
+        setPasswords(passwords.map(pass =>
+            pass.id === id ? { ...pass, isTrash: !pass.isTrash, isFavorite: false } : pass
+        ));
+    };
+
+    const filteredPasswords = passwords.filter(pass => {
+        if (activeCategory === 'favorites') return pass.isFavorite;
+        if (activeCategory === 'trash') return pass.isTrash;
+        return !pass.isTrash;
+    });
+
+    if (!isLoggedIn) {
+        return <LoginPage onLogin={handleLogin} />;
+    }
+
+    return (
+        <>
+            <Dashboard
+                passwords={filteredPasswords}
+                onAdd={() => setShowAddModal(true)}
+                onToggleFavorite={toggleFavorite}
+                onToggleTrash={toggleTrash}
+                onDelete={handleDelete}
+                activeCategory={activeCategory}
+                setActiveCategory={setActiveCategory}
+            />
+            {showAddModal && <AddPasswordModal onAdd={handleAdd} onClose={() => setShowAddModal(false)} />}
+        </>
+    );
 }
 
 function LoginPage({ onLogin }) {
-  // ... (LoginPage component remains unchanged)
-}
-
-function Dashboard({ passwords, onAdd, onToggleFavorite, onToggleTrash, activeCategory, setActiveCategory }) {
-  return (
-      <div className="dashboard">
-        <header>
-          <h1>Password Manager</h1>
-          <button onClick={onAdd}>Add Item</button>
-        </header>
-        <main>
-          <aside>
-            <nav>
-              <ul>
-                <li><a href="#" className={activeCategory === 'all' ? 'active' : ''} onClick={() => setActiveCategory('all')}>All Items</a></li>
-                <li><a href="#" className={activeCategory === 'favorites' ? 'active' : ''} onClick={() => setActiveCategory('favorites')}>Favorites</a></li>
-                <li><a href="#" className={activeCategory === 'trash' ? 'active' : ''} onClick={() => setActiveCategory('trash')}>Trash</a></li>
-              </ul>
-            </nav>
-          </aside>
-          <section className="password-list">
-            {passwords.map((item) => (
-                <PasswordItem
-                    key={item.id}
-                    item={item}
-                    onToggleFavorite={onToggleFavorite}
-                    onToggleTrash={onToggleTrash}
-                />
-            ))}
-          </section>
-        </main>
-      </div>
-  );
-}
-
-function PasswordItem({ item, onToggleFavorite, onToggleTrash }) {
-  const [showPassword, setShowPassword] = useState(false);
-
-  const togglePasswordVisibility = () => {
-    setShowPassword(!showPassword);
-  };
-
-  const copyPassword = () => {
-    navigator.clipboard.writeText(item.password)
-        .then(() => alert('Password copied to clipboard!'))
-        .catch(err => console.error('Failed to copy password: ', err));
-  };
-
-  return (
-      <div className="password-item">
-        <div className="site-icon">{item.site[0]}</div>
-        <div className="item-details">
-          <h3>{item.site}</h3>
-          <p>{item.username}</p>
-          <div className="password-field">
-            <input
-                type={showPassword ? "text" : "password"}
-                value={item.password}
-                readOnly
-            />
-            <button onClick={togglePasswordVisibility} className="eye-button">
-              {showPassword ? "👁️" : "👁️‍🗨️"}
-            </button>
-            <button onClick={copyPassword} className="copy-button">
-              📋
-            </button>
-            <button onClick={() => onToggleFavorite(item.id)} className="favorite-button">
-              {item.isFavorite ? "⭐" : "☆"}
-            </button>
-            <button onClick={() => onToggleTrash(item.id)} className="trash-button">
-              🗑️
-            </button>
-          </div>
+    return (
+        <div className="login-page">
+            <div className="login-container">
+                <h1>Password Manager</h1>
+                <form onSubmit={onLogin}>
+                    <input type="text" placeholder="Email address" required />
+                    <input type="password" placeholder="Master password" required />
+                    <button type="submit">Log In</button>
+                </form>
+            </div>
         </div>
-      </div>
-  );
+    );
+}
+
+function Dashboard({ passwords, onAdd, onToggleFavorite, onToggleTrash, onDelete, activeCategory, setActiveCategory }) {
+    return (
+        <div className="dashboard">
+            <header>
+                <h1>Password Manager</h1>
+                <button onClick={onAdd}>Add Item</button>
+            </header>
+            <main>
+                <aside>
+                    <nav>
+                        <ul>
+                            <li><a href="#" className={activeCategory === 'all' ? 'active' : ''} onClick={() => setActiveCategory('all')}>All Items</a></li>
+                            <li><a href="#" className={activeCategory === 'favorites' ? 'active' : ''} onClick={() => setActiveCategory('favorites')}>Favorites</a></li>
+                            <li><a href="#" className={activeCategory === 'trash' ? 'active' : ''} onClick={() => setActiveCategory('trash')}>Trash</a></li>
+                        </ul>
+                    </nav>
+                </aside>
+                <section className="password-list">
+                    {passwords.map((item) => (
+                        <PasswordItem
+                            key={item.id}
+                            item={item}
+                            onToggleFavorite={onToggleFavorite}
+                            onToggleTrash={onToggleTrash}
+                            onDelete={onDelete}
+                        />
+                    ))}
+                </section>
+            </main>
+        </div>
+    );
+}
+
+function PasswordItem({ item, onToggleFavorite, onToggleTrash, onDelete }) {
+    const [showPassword, setShowPassword] = useState(false);
+
+    const togglePasswordVisibility = () => {
+        setShowPassword(!showPassword);
+    };
+
+    const copyPassword = () => {
+        navigator.clipboard.writeText(item.password)
+            .then(() => alert('Password copied to clipboard!'))
+            .catch(err => console.error('Failed to copy password: ', err));
+    };
+
+    return (
+        <div className="password-item">
+            <div className="site-icon">{item.site[0]}</div>
+            <div className="item-details">
+                <h3>{item.site}</h3>
+                <p>{item.username}</p>
+                <div className="password-field">
+                    <input
+                        type={showPassword ? "text" : "password"}
+                        value={item.password}
+                        readOnly
+                    />
+                    <button onClick={togglePasswordVisibility}>👁️</button>
+                    <button onClick={copyPassword}>📋</button>
+                </div>
+            </div>
+            <div className="item-actions">
+                <button onClick={() => onToggleFavorite(item.id)}>⭐</button>
+                <button onClick={() => onToggleTrash(item.id)}>🗑️</button>
+                <button onClick={() => onDelete(item.id)}>❌</button>
+            </div>
+        </div>
+    );
+}
+
+function AddPasswordModal({ onAdd, onClose }) {
+    const [site, setSite] = useState('');
+    const [username, setUsername] = useState('');
+    const [password, setPassword] = useState('');
+
+    const handleSubmit = (event) => {
+        event.preventDefault();
+        onAdd({ site, username, password });
+    };
+
+    return (
+        <div className="modal">
+            <div className="modal-content">
+                <h2>Add New Password</h2>
+                <form onSubmit={handleSubmit}>
+                    <input type="text" placeholder="Website/Platform" value={site} onChange={(e) => setSite(e.target.value)} required />
+                    <input type="text" placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} required />
+                    <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+                    <button type="submit">Add</button>
+                    <button type="button" onClick={onClose}>Cancel</button>
+                </form>
+            </div>
+        </div>
+    );
 }
 
 export default App;
