@@ -12,7 +12,6 @@ import org.springframework.security.web.SecurityFilterChain;
 public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        System.out.println("Security configuration applied!");
         http
                 .csrf(csrf -> csrf.disable()) // CSRF deaktivieren
                 .authorizeHttpRequests(auth -> auth
