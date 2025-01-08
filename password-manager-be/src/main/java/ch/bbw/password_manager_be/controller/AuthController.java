@@ -23,7 +23,7 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<String> login(@RequestBody User user) {
         User foundUser = userService.getUserByUsername(user.getUsername());
-        if (userService.checkPassword(user.getPassword(), foundUser.getPassword())) {
+        if (foundUser != null && userService.checkPassword(user.getPassword(), foundUser.getPassword())) {
             return ResponseEntity.ok("Login successful!");
         } else {
             return ResponseEntity.status(401).body("Invalid credentials!");
