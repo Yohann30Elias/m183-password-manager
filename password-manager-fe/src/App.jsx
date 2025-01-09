@@ -1,27 +1,82 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './App.css';
 
 function App() {
-    const [isLoggedIn, setIsLoggedIn] = useState(false);
-    const [passwords, setPasswords] = useState([
-        { id: 1, site: 'Google', username: 'user@gmail.com', password: 'google123', isFavorite: false, isTrash: false },
-        { id: 2, site: 'Facebook', username: 'user@fb.com', password: 'facebook456', isFavorite: false, isTrash: false },
-    ]);
-    const [activeCategory, setActiveCategory] = useState('all');
-    const [showAddModal, setShowAddModal] = useState(false);
+    const [user, setUser] = useState(null);
+    const [passwords, setPasswords] = useState([]);
+    const [isLoggedIn, setIsLoggedIn] = useState(false); // Added
+    const [showAddModal, setShowAddModal] = useState(false); // Added
+    const [activeCategory, setActiveCategory] = useState('all'); // Added
+
+    useEffect(() => {
+        const fetchPasswords = async () => {
+            try {
+                const response = await fetch('/api/passwords/retrieve');
+                const data = await response.json();
+                const firstUser = Object.keys(data)[0];
+                setUser(firstUser);
+                setPasswords(data[firstUser].data.map((item, index) => ({
+                    ...item,
+                    id: index + 1,
+                    isFavorite: false,
+                    isTrash: false
+                })));
+            } catch (error) {
+                console.error('Error fetching passwords:', error);
+            }
+        };
+
+        fetchPasswords();
+    }, []);
 
     const handleLogin = (event) => {
         event.preventDefault();
         setIsLoggedIn(true);
     };
 
-    const handleAdd = (newPass) => {
-        const updatedPasswords = [
-            ...passwords,
-            { ...newPass, id: passwords.length + 1, isFavorite: false, isTrash: false }
-        ];
-        setPasswords(updatedPasswords);
-        setShowAddModal(false);
+    const handleAdd = async (newPass) => {
+        const newPasswordItem = {
+            platform: newPass.site,
+            username: newPass.username,
+            password: newPass.password
+        };
+
+        try {
+            const response = await fetch('/api/passwords/add', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    user: user,
+                    newPassword: newPasswordItem
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to add password');
+            }
+
+            const result = await response.json();
+
+            if (result.success) {
+                const updatedPasswords = [
+                    ...passwords,
+                    {
+                        ...newPasswordItem,
+                        id: passwords.length + 1,
+                        isFavorite: false,
+                        isTrash: false
+                    }
+                ];
+                setPasswords(updatedPasswords);
+                setShowAddModal(false);
+            } else {
+                console.error('Failed to add password:', result.message);
+            }
+        } catch (error) {
+            console.error('Error adding password:', error);
+        }
     };
 
     const handleDelete = (id) => {
@@ -129,9 +184,9 @@ function PasswordItem({ item, onToggleFavorite, onToggleTrash, onDelete }) {
 
     return (
         <div className="password-item">
-            <div className="site-icon">{item.site[0]}</div>
+            <div className="site-icon">{item.platform[0]}</div>
             <div className="item-details">
-                <h3>{item.site}</h3>
+                <h3>{item.platform}</h3>
                 <p>{item.username}</p>
                 <div className="password-field">
                     <input
@@ -153,13 +208,13 @@ function PasswordItem({ item, onToggleFavorite, onToggleTrash, onDelete }) {
 }
 
 function AddPasswordModal({ onAdd, onClose }) {
-    const [site, setSite] = useState('');
+    const [platform, setPlatform] = useState('');
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
 
     const handleSubmit = (event) => {
         event.preventDefault();
-        onAdd({ site, username, password });
+        onAdd({ site: platform, username, password });
     };
 
     return (
@@ -167,7 +222,7 @@ function AddPasswordModal({ onAdd, onClose }) {
             <div className="modal-content">
                 <h2>Add New Password</h2>
                 <form onSubmit={handleSubmit}>
-                    <input type="text" placeholder="Website/Platform" value={site} onChange={(e) => setSite(e.target.value)} required />
+                    <input type="text" placeholder="Website/Platform" value={platform} onChange={(e) => setPlatform(e.target.value)} required />
                     <input type="text" placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} required />
                     <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required />
                     <button type="submit">Add</button>
