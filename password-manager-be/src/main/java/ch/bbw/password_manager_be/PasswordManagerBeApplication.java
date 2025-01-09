@@ -27,7 +27,7 @@ public class PasswordManagerBeApplication {
 	@RequestMapping("/api/passwords")
 	public static class PasswordController {
 
-		private static final String DATABASE_FILE = "database.json";
+		private static final String DATABASE_FILE = "../../resources/database.json";
 		private final ObjectMapper objectMapper = new ObjectMapper();
 
 		@PostMapping("/add")

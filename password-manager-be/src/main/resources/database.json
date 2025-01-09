@@ -1,0 +1,33 @@
+{
+  "user1": {
+    "password": "test",
+    "data": [
+      {
+        "platform": "google",
+        "username": "tester",
+        "password": "test"
+      },
+      {
+        "platform": "yahoo",
+        "username": "tester",
+        "password": "test"
+      }
+    ]
+  },
+  "user2": {
+    "password": "test2",
+    "data": [
+      {
+        "platform": "google",
+        "username": "tester",
+        "password": "test"
+      },
+      {
+        "platform": "yahoo",
+        "username": "tester",
+        "password": "test"
+      }
+    ]
+  }
+
+}
