@@ -24,13 +24,44 @@ public class PasswordManagerBeApplication {
 	}
 
 	@RestController
-	@RequestMapping("/api/passwords")
-	public static class PasswordController {
+	@RequestMapping("/api")
+	public static class UserController {
 
-		private static final String DATABASE_FILE = "../../resources/database.json";
+		private static final String DATABASE_FILE = "password-manager-be/src/main/resources/database.json";
 		private final ObjectMapper objectMapper = new ObjectMapper();
 
-		@PostMapping("/add")
+		@PostMapping("/login")
+		public Map<String, Object> login(@RequestBody Map<String, String> payload) {
+			String email = payload.get("email");
+			String masterPassword = payload.get("masterPassword");
+
+			try {
+				Map<String, Object> database = readDatabase();
+				System.out.println("Database loaded: " + database);
+
+				if (database.containsKey(email)) {
+					Map<String, Object> userData = (Map<String, Object>) database.get(email);
+					String storedPassword = (String) userData.get("password");
+
+
+					if (storedPassword.equals(masterPassword)) {
+						System.out.println("Login successful");
+						return Map.of("success", true);
+					} else {
+						System.out.println("Invalid password");
+					}
+				} else {
+					System.out.println("Email not found in database");
+				}
+				return Map.of("success", false, "message", "Invalid email or password");
+			} catch (IOException e) {
+				e.printStackTrace();
+				return Map.of("success", false, "message", "Error reading database");
+			}
+		}
+
+
+		@PostMapping("/passwords/add")
 		public Map<String, Object> addPassword(@RequestBody Map<String, Object> payload) {
 			String user = (String) payload.get("user");
 			Map<String, Object> newPassword = (Map<String, Object>) payload.get("newPassword");
@@ -55,7 +86,7 @@ public class PasswordManagerBeApplication {
 			}
 		}
 
-		@GetMapping("/retrieve")
+		@GetMapping("/passwords/retrieve")
 		public Map<String, Object> retrievePasswords() {
 			try {
 				return readDatabase();

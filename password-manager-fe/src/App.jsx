@@ -4,34 +4,74 @@ import './App.css';
 function App() {
     const [user, setUser] = useState(null);
     const [passwords, setPasswords] = useState([]);
-    const [isLoggedIn, setIsLoggedIn] = useState(false); // Added
-    const [showAddModal, setShowAddModal] = useState(false); // Added
-    const [activeCategory, setActiveCategory] = useState('all'); // Added
+    const [isLoggedIn, setIsLoggedIn] = useState(false);
+    const [error, setError] = useState(null);
+    const [showAddModal, setShowAddModal] = useState(false);
+    const [activeCategory, setActiveCategory] = useState('all');
 
     useEffect(() => {
-        const fetchPasswords = async () => {
-            try {
-                const response = await fetch('/api/passwords/retrieve');
-                const data = await response.json();
-                const firstUser = Object.keys(data)[0];
-                setUser(firstUser);
-                setPasswords(data[firstUser].data.map((item, index) => ({
-                    ...item,
-                    id: index + 1,
-                    isFavorite: false,
-                    isTrash: false
-                })));
-            } catch (error) {
-                console.error('Error fetching passwords:', error);
-            }
-        };
+        if (isLoggedIn && user) {
+            const fetchPasswords = async () => {
+                try {
+                    const response = await fetch('/api/passwords/retrieve');
+                    if (!response.ok) {
+                        throw new Error('Failed to fetch passwords');
+                    }
+                    const data = await response.json();
 
-        fetchPasswords();
-    }, []);
+                    // Abruf der spezifischen Benutzerdaten basierend auf `user`
+                    const userPasswords = data[user]?.data || [];
+                    setPasswords(userPasswords.map((item, index) => ({
+                        ...item,
+                        id: index + 1,
+                        isFavorite: false,
+                        isTrash: false,
+                    })));
+                } catch (error) {
+                    setError(error.message);
+                }
+            };
 
-    const handleLogin = (event) => {
+            fetchPasswords();
+        }
+    }, [isLoggedIn, user]);
+
+    const handleLogin = async (event) => {
         event.preventDefault();
-        setIsLoggedIn(true);
+        const email = event.target.email.value;
+        const masterPassword = event.target.password.value;
+
+        try {
+            const response = await fetch('/api/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email, masterPassword }),
+            });
+
+            if (!response.ok) {
+                throw new Error('Invalid login credentials');
+            }
+
+            const data = await response.json();
+            if (data.success) {
+                setIsLoggedIn(true);
+                setUser(email); // Speichert den aktuellen Benutzer
+            } else {
+                setError(data.message || 'Login failed. Please try again.');
+            }
+        } catch (error) {
+            setError(error.message);
+        }
+    };
+
+
+
+    const handleLogout = () => {
+        setIsLoggedIn(false);
+        setUser(null);
+        setPasswords([]);
     };
 
     const handleAdd = async (newPass) => {
@@ -72,27 +112,11 @@ function App() {
                 setPasswords(updatedPasswords);
                 setShowAddModal(false);
             } else {
-                console.error('Failed to add password:', result.message);
+                setError('Failed to add password: ' + result.message);
             }
         } catch (error) {
-            console.error('Error adding password:', error);
+            setError(error.message);
         }
-    };
-
-    const handleDelete = (id) => {
-        setPasswords(passwords.filter(pass => pass.id !== id));
-    };
-
-    const toggleFavorite = (id) => {
-        setPasswords(passwords.map(pass =>
-            pass.id === id ? { ...pass, isFavorite: !pass.isFavorite, isTrash: false } : pass
-        ));
-    };
-
-    const toggleTrash = (id) => {
-        setPasswords(passwords.map(pass =>
-            pass.id === id ? { ...pass, isTrash: !pass.isTrash, isFavorite: false } : pass
-        ));
     };
 
     const filteredPasswords = passwords.filter(pass => {
@@ -102,45 +126,50 @@ function App() {
     });
 
     if (!isLoggedIn) {
-        return <LoginPage onLogin={handleLogin} />;
+        return <LoginPage onLogin={handleLogin} error={error} />;
     }
 
     return (
         <>
             <Dashboard
+                user={user}
                 passwords={filteredPasswords}
                 onAdd={() => setShowAddModal(true)}
-                onToggleFavorite={toggleFavorite}
-                onToggleTrash={toggleTrash}
-                onDelete={handleDelete}
+                onLogout={handleLogout}
                 activeCategory={activeCategory}
                 setActiveCategory={setActiveCategory}
             />
             {showAddModal && <AddPasswordModal onAdd={handleAdd} onClose={() => setShowAddModal(false)} />}
+            {error && <div className="error">{error}</div>} {/* Fehleranzeige */}
         </>
     );
 }
 
-function LoginPage({ onLogin }) {
+function LoginPage({ onLogin, error }) {
     return (
         <div className="login-page">
             <div className="login-container">
                 <h1>Password Manager</h1>
                 <form onSubmit={onLogin}>
-                    <input type="text" placeholder="Email address" required />
-                    <input type="password" placeholder="Master password" required />
+                    <input type="text" name="email" placeholder="Email address" required />
+                    <input type="password" name="password" placeholder="Master password" required />
                     <button type="submit">Log In</button>
                 </form>
+                {error && <div className="error">{error}</div>} {/* Fehleranzeige */}
             </div>
         </div>
     );
 }
 
-function Dashboard({ passwords, onAdd, onToggleFavorite, onToggleTrash, onDelete, activeCategory, setActiveCategory }) {
+function Dashboard({ user, passwords, onAdd, onLogout, activeCategory, setActiveCategory }) {
     return (
         <div className="dashboard">
             <header>
                 <h1>Password Manager</h1>
+                <div>
+                    <span>Welcome, {user}</span>
+                    <button onClick={onLogout}>Log Out</button>
+                </div>
                 <button onClick={onAdd}>Add Item</button>
             </header>
             <main>
@@ -158,51 +187,10 @@ function Dashboard({ passwords, onAdd, onToggleFavorite, onToggleTrash, onDelete
                         <PasswordItem
                             key={item.id}
                             item={item}
-                            onToggleFavorite={onToggleFavorite}
-                            onToggleTrash={onToggleTrash}
-                            onDelete={onDelete}
                         />
                     ))}
                 </section>
             </main>
-        </div>
-    );
-}
-
-function PasswordItem({ item, onToggleFavorite, onToggleTrash, onDelete }) {
-    const [showPassword, setShowPassword] = useState(false);
-
-    const togglePasswordVisibility = () => {
-        setShowPassword(!showPassword);
-    };
-
-    const copyPassword = () => {
-        navigator.clipboard.writeText(item.password)
-            .then(() => alert('Password copied to clipboard!'))
-            .catch(err => console.error('Failed to copy password: ', err));
-    };
-
-    return (
-        <div className="password-item">
-            <div className="site-icon">{item.platform[0]}</div>
-            <div className="item-details">
-                <h3>{item.platform}</h3>
-                <p>{item.username}</p>
-                <div className="password-field">
-                    <input
-                        type={showPassword ? "text" : "password"}
-                        value={item.password}
-                        readOnly
-                    />
-                    <button onClick={togglePasswordVisibility}>👁️</button>
-                    <button onClick={copyPassword}>📋</button>
-                </div>
-            </div>
-            <div className="item-actions">
-                <button onClick={() => onToggleFavorite(item.id)}>⭐</button>
-                <button onClick={() => onToggleTrash(item.id)}>🗑️</button>
-                <button onClick={() => onDelete(item.id)}>❌</button>
-            </div>
         </div>
     );
 }
@@ -228,6 +216,25 @@ function AddPasswordModal({ onAdd, onClose }) {
                     <button type="submit">Add</button>
                     <button type="button" onClick={onClose}>Cancel</button>
                 </form>
+            </div>
+        </div>
+    );
+}
+
+function PasswordItem({ item }) {
+    return (
+        <div className="password-item">
+            <div className="site-icon">{item.platform[0]}</div>
+            <div className="item-details">
+                <h3>{item.platform}</h3>
+                <p>{item.username}</p>
+                <div className="password-field">
+                    <input
+                        type="password"
+                        value={item.password}
+                        readOnly
+                    />
+                </div>
             </div>
         </div>
     );
