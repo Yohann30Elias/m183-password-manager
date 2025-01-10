@@ -50,11 +50,16 @@ function App() {
                 body: JSON.stringify({ email, masterPassword }),
             });
 
+            // Überprüfen, ob der Status OK ist (200-299)
             if (!response.ok) {
-                throw new Error('Invalid login credentials');
+                const errorText = await response.text();
+                throw new Error(`Server error: ${errorText}`);
             }
 
+            // Versuch, die Antwort als JSON zu analysieren
             const data = await response.json();
+
+            // Überprüfen, ob die Anmeldung erfolgreich war
             if (data.success) {
                 setIsLoggedIn(true);
                 setUser(email); // Speichert den aktuellen Benutzer
@@ -62,10 +67,11 @@ function App() {
                 setError(data.message || 'Login failed. Please try again.');
             }
         } catch (error) {
-            setError(error.message);
+            // Fehler behandeln und in der UI anzeigen
+            console.error('Error during login:', error);
+            setError(error.message || 'An unexpected error occurred. Please try again.');
         }
     };
-
 
 
     const handleLogout = () => {
