@@ -2,15 +2,34 @@ import React, { useState, useEffect } from 'react';
 import './App.css';
 import CryptoJS from 'crypto-js';
 
-const SECRET_KEY = 'your_secret_key';
+const SECRET_KEY = 'fisch123';
 
 function encryptPassword(password) {
-    return CryptoJS.AES.encrypt(password, SECRET_KEY).toString();
+
+    const encrypted = CryptoJS.AES.encrypt(password, CryptoJS.enc.Utf8.parse(SECRET_KEY), {
+        mode: CryptoJS.mode.ECB,
+        padding: CryptoJS.pad.Pkcs7,
+    }).toString();
+
+    return encrypted;
 }
 
 function decryptPassword(encryptedPassword) {
-    const bytes = CryptoJS.AES.decrypt(encryptedPassword, SECRET_KEY);
-    return bytes.toString(CryptoJS.enc.Utf8);
+    const key = CryptoJS.enc.Utf8.parse(SECRET_KEY);
+
+    try {
+        const decrypted = CryptoJS.AES.decrypt(encryptedPassword, key, {
+            mode: CryptoJS.mode.ECB,
+            padding: CryptoJS.pad.Pkcs7,
+        });
+
+        const result = decrypted.toString(CryptoJS.enc.Utf8);
+
+        return result;
+    } catch (error) {
+        console.error("Encrypted password that caused error:", encryptedPassword);
+        return null;
+    }
 }
 
 function App() {
@@ -24,21 +43,31 @@ function App() {
         if (isLoggedIn && user) {
             const fetchPasswords = async () => {
                 try {
+
                     const response = await fetch('/api/passwords/retrieve');
+                    console.log("API Response status:", response.status);
+
                     if (!response.ok) {
                         throw new Error('Failed to fetch passwords');
                     }
+
                     const data = await response.json();
 
                     const userPasswords = data[user]?.data || [];
+
                     setPasswords(
-                        userPasswords.map((item, index) => ({
-                            ...item,
-                            id: index + 1,
-                            password: decryptPassword(item.password),
-                        }))
+                        userPasswords.map((item, index) => {
+                            const decryptedPassword = decryptPassword(item.password);
+
+                            return {
+                                ...item,
+                                id: index + 1,
+                                password: decryptedPassword,
+                            };
+                        })
                     );
                 } catch (error) {
+                    console.error("Error while fetching or processing passwords:", error);
                     setError(error.message);
                 }
             };
@@ -52,13 +81,18 @@ function App() {
         const email = event.target.email.value;
         const masterPassword = event.target.password.value;
 
+        const encryptedMasterPassword = encryptPassword(masterPassword);
+
         try {
             const response = await fetch('/api/login', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ email, masterPassword }),
+                body: JSON.stringify({
+                    email: email,
+                    masterPassword: encryptedMasterPassword,
+                }),
             });
 
             if (!response.ok) {
@@ -87,6 +121,7 @@ function App() {
 
     const handleAdd = async (newPass) => {
         const encryptedPassword = encryptPassword(newPass.password);
+
         const newPasswordItem = {
             platform: newPass.site,
             username: newPass.username,
@@ -116,7 +151,7 @@ function App() {
                     ...passwords,
                     {
                         ...newPasswordItem,
-                        password: newPass.password, // Store decrypted version for UI
+                        password: newPass.password,
                         id: passwords.length + 1,
                     },
                 ];
