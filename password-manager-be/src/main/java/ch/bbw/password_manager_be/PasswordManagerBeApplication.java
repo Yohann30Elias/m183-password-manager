@@ -9,6 +9,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.bind.annotation.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.web.cors.CorsConfiguration;
 
 import java.io.File;
 import java.io.IOException;
@@ -133,9 +134,17 @@ public class PasswordManagerBeApplication {
 		public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 			http
 					.csrf(csrf -> csrf.disable())
+					.cors(cors -> cors.configurationSource(request -> {
+						var config = new CorsConfiguration();
+						config.setAllowedOrigins(List.of("http://localhost:3000"));
+						config.setAllowedMethods(List.of("*"));
+						config.setAllowedHeaders(List.of("*"));
+						config.setAllowCredentials(true);
+						return config;
+					}))
 					.authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
-
 			return http.build();
 		}
+
 	}
 }
