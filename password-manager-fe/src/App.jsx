@@ -1,5 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
+import CryptoJS from 'crypto-js';
+
+const SECRET_KEY = 'your_secret_key';
+
+function encryptPassword(password) {
+    return CryptoJS.AES.encrypt(password, SECRET_KEY).toString();
+}
+
+function decryptPassword(encryptedPassword) {
+    const bytes = CryptoJS.AES.decrypt(encryptedPassword, SECRET_KEY);
+    return bytes.toString(CryptoJS.enc.Utf8);
+}
 
 function App() {
     const [user, setUser] = useState(null);
@@ -19,10 +31,13 @@ function App() {
                     const data = await response.json();
 
                     const userPasswords = data[user]?.data || [];
-                    setPasswords(userPasswords.map((item, index) => ({
-                        ...item,
-                        id: index + 1,
-                    })));
+                    setPasswords(
+                        userPasswords.map((item, index) => ({
+                            ...item,
+                            id: index + 1,
+                            password: decryptPassword(item.password),
+                        }))
+                    );
                 } catch (error) {
                     setError(error.message);
                 }
@@ -71,10 +86,11 @@ function App() {
     };
 
     const handleAdd = async (newPass) => {
+        const encryptedPassword = encryptPassword(newPass.password);
         const newPasswordItem = {
             platform: newPass.site,
             username: newPass.username,
-            password: newPass.password,
+            password: encryptedPassword,
         };
 
         try {
@@ -100,6 +116,7 @@ function App() {
                     ...passwords,
                     {
                         ...newPasswordItem,
+                        password: newPass.password, // Store decrypted version for UI
                         id: passwords.length + 1,
                     },
                 ];
@@ -124,7 +141,9 @@ function App() {
             });
 
             if (response.ok) {
-                setPasswords((prev) => prev.filter((password) => password.platform !== platform));
+                setPasswords((prev) =>
+                    prev.filter((password) => password.platform !== platform)
+                );
             } else {
                 const errorData = await response.json();
                 throw new Error(errorData.message || 'Failed to delete password');
