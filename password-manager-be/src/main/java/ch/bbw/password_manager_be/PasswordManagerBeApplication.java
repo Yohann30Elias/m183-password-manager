@@ -37,29 +37,19 @@ public class PasswordManagerBeApplication {
 
 			try {
 				Map<String, Object> database = readDatabase();
-				System.out.println("Database loaded: " + database);
-
 				if (database.containsKey(email)) {
 					Map<String, Object> userData = (Map<String, Object>) database.get(email);
 					String storedPassword = (String) userData.get("password");
 
-
 					if (storedPassword.equals(masterPassword)) {
-						System.out.println("Login successful");
 						return Map.of("success", true);
-					} else {
-						System.out.println("Invalid password");
 					}
-				} else {
-					System.out.println("Email not found in database");
 				}
 				return Map.of("success", false, "message", "Invalid email or password");
 			} catch (IOException e) {
-				e.printStackTrace();
 				return Map.of("success", false, "message", "Error reading database");
 			}
 		}
-
 
 		@PostMapping("/passwords/add")
 		public Map<String, Object> addPassword(@RequestBody Map<String, Object> payload) {
@@ -81,7 +71,6 @@ public class PasswordManagerBeApplication {
 
 				return Map.of("success", true);
 			} catch (IOException e) {
-				e.printStackTrace();
 				return Map.of("success", false, "message", "Failed to add password");
 			}
 		}
@@ -91,8 +80,27 @@ public class PasswordManagerBeApplication {
 			try {
 				return readDatabase();
 			} catch (IOException e) {
-				e.printStackTrace();
 				return new HashMap<>();
+			}
+		}
+
+		@DeleteMapping("/passwords/delete/{id}")
+		public Map<String, Object> deletePassword(@PathVariable String id, @RequestBody Map<String, String> payload) {
+			String user = payload.get("user");
+
+			try {
+				Map<String, Object> database = readDatabase();
+
+				if (database.containsKey(user)) {
+					List<Map<String, Object>> userData = (List<Map<String, Object>>) ((Map<String, Object>) database.get(user)).get("data");
+					userData.removeIf(password -> password.get("id").toString().equals(id));
+
+					writeDatabase(database);
+					return Map.of("success", true);
+				}
+				return Map.of("success", false, "message", "User not found");
+			} catch (IOException e) {
+				return Map.of("success", false, "message", "Failed to delete password");
 			}
 		}
 
@@ -115,8 +123,8 @@ public class PasswordManagerBeApplication {
 		@Bean
 		public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 			http
-					.csrf(csrf -> csrf.disable()) // Disable CSRF for simplicity
-					.authorizeHttpRequests(auth -> auth.anyRequest().permitAll()); // Allow all requests without authentication
+					.csrf(csrf -> csrf.disable())
+					.authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
 
 			return http.build();
 		}

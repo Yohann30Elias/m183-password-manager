@@ -7,7 +7,6 @@ function App() {
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [error, setError] = useState(null);
     const [showAddModal, setShowAddModal] = useState(false);
-    const [activeCategory, setActiveCategory] = useState('all');
 
     useEffect(() => {
         if (isLoggedIn && user) {
@@ -19,13 +18,10 @@ function App() {
                     }
                     const data = await response.json();
 
-                    // Abruf der spezifischen Benutzerdaten basierend auf `user`
                     const userPasswords = data[user]?.data || [];
                     setPasswords(userPasswords.map((item, index) => ({
                         ...item,
                         id: index + 1,
-                        isFavorite: false,
-                        isTrash: false,
                     })));
                 } catch (error) {
                     setError(error.message);
@@ -50,29 +46,23 @@ function App() {
                 body: JSON.stringify({ email, masterPassword }),
             });
 
-            // Überprüfen, ob der Status OK ist (200-299)
             if (!response.ok) {
                 const errorText = await response.text();
                 throw new Error(`Server error: ${errorText}`);
             }
 
-            // Versuch, die Antwort als JSON zu analysieren
             const data = await response.json();
 
-            // Überprüfen, ob die Anmeldung erfolgreich war
             if (data.success) {
                 setIsLoggedIn(true);
-                setUser(email); // Speichert den aktuellen Benutzer
+                setUser(email);
             } else {
                 setError(data.message || 'Login failed. Please try again.');
             }
         } catch (error) {
-            // Fehler behandeln und in der UI anzeigen
-            console.error('Error during login:', error);
             setError(error.message || 'An unexpected error occurred. Please try again.');
         }
     };
-
 
     const handleLogout = () => {
         setIsLoggedIn(false);
@@ -84,7 +74,7 @@ function App() {
         const newPasswordItem = {
             platform: newPass.site,
             username: newPass.username,
-            password: newPass.password
+            password: newPass.password,
         };
 
         try {
@@ -95,7 +85,7 @@ function App() {
                 },
                 body: JSON.stringify({
                     user: user,
-                    newPassword: newPasswordItem
+                    newPassword: newPasswordItem,
                 }),
             });
 
@@ -111,9 +101,7 @@ function App() {
                     {
                         ...newPasswordItem,
                         id: passwords.length + 1,
-                        isFavorite: false,
-                        isTrash: false
-                    }
+                    },
                 ];
                 setPasswords(updatedPasswords);
                 setShowAddModal(false);
@@ -125,11 +113,29 @@ function App() {
         }
     };
 
-    const filteredPasswords = passwords.filter(pass => {
-        if (activeCategory === 'favorites') return pass.isFavorite;
-        if (activeCategory === 'trash') return pass.isTrash;
-        return !pass.isTrash;
-    });
+    const handleDeletePassword = async (id) => {
+        try {
+            const response = await fetch(`/api/passwords/delete/${id}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ user }),
+            });
+
+            if (response.ok) {
+                setPasswords((prev) => prev.filter((password) => password.id !== id));
+            } else {
+                throw new Error('Failed to delete password');
+            }
+        } catch (error) {
+            setError(error.message);
+        }
+    };
+
+    const copyToClipboard = (password) => {
+        navigator.clipboard.writeText(password);
+    };
 
     if (!isLoggedIn) {
         return <LoginPage onLogin={handleLogin} error={error} />;
@@ -139,14 +145,16 @@ function App() {
         <>
             <Dashboard
                 user={user}
-                passwords={filteredPasswords}
+                passwords={passwords}
                 onAdd={() => setShowAddModal(true)}
                 onLogout={handleLogout}
-                activeCategory={activeCategory}
-                setActiveCategory={setActiveCategory}
+                onDelete={handleDeletePassword}
+                onCopy={copyToClipboard}
             />
-            {showAddModal && <AddPasswordModal onAdd={handleAdd} onClose={() => setShowAddModal(false)} />}
-            {error && <div className="error">{error}</div>} {/* Fehleranzeige */}
+            {showAddModal && (
+                <AddPasswordModal onAdd={handleAdd} onClose={() => setShowAddModal(false)} />
+            )}
+            {error && <div className="error">{error}</div>}
         </>
     );
 }
@@ -161,13 +169,13 @@ function LoginPage({ onLogin, error }) {
                     <input type="password" name="password" placeholder="Master password" required />
                     <button type="submit">Log In</button>
                 </form>
-                {error && <div className="error">{error}</div>} {/* Fehleranzeige */}
+                {error && <div className="error">{error}</div>}
             </div>
         </div>
     );
 }
 
-function Dashboard({ user, passwords, onAdd, onLogout, activeCategory, setActiveCategory }) {
+function Dashboard({ user, passwords, onAdd, onLogout, onDelete, onCopy }) {
     return (
         <div className="dashboard">
             <header>
@@ -176,24 +184,12 @@ function Dashboard({ user, passwords, onAdd, onLogout, activeCategory, setActive
                     <span>Welcome, {user}</span>
                     <button onClick={onLogout}>Log Out</button>
                 </div>
-                <button onClick={onAdd}>Add Item</button>
+                <button onClick={onAdd}>Add Password</button>
             </header>
             <main>
-                <aside>
-                    <nav>
-                        <ul>
-                            <li><a href="#" className={activeCategory === 'all' ? 'active' : ''} onClick={() => setActiveCategory('all')}>All Items</a></li>
-                            <li><a href="#" className={activeCategory === 'favorites' ? 'active' : ''} onClick={() => setActiveCategory('favorites')}>Favorites</a></li>
-                            <li><a href="#" className={activeCategory === 'trash' ? 'active' : ''} onClick={() => setActiveCategory('trash')}>Trash</a></li>
-                        </ul>
-                    </nav>
-                </aside>
                 <section className="password-list">
                     {passwords.map((item) => (
-                        <PasswordItem
-                            key={item.id}
-                            item={item}
-                        />
+                        <PasswordItem key={item.id} item={item} onDelete={onDelete} onCopy={onCopy} />
                     ))}
                 </section>
             </main>
@@ -216,18 +212,40 @@ function AddPasswordModal({ onAdd, onClose }) {
             <div className="modal-content">
                 <h2>Add New Password</h2>
                 <form onSubmit={handleSubmit}>
-                    <input type="text" placeholder="Website/Platform" value={platform} onChange={(e) => setPlatform(e.target.value)} required />
-                    <input type="text" placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} required />
-                    <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+                    <input
+                        type="text"
+                        placeholder="Website/Platform"
+                        value={platform}
+                        onChange={(e) => setPlatform(e.target.value)}
+                        required
+                    />
+                    <input
+                        type="text"
+                        placeholder="Username"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        required
+                    />
+                    <input
+                        type="password"
+                        placeholder="Password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                    />
                     <button type="submit">Add</button>
-                    <button type="button" onClick={onClose}>Cancel</button>
+                    <button type="button" onClick={onClose}>
+                        Cancel
+                    </button>
                 </form>
             </div>
         </div>
     );
 }
 
-function PasswordItem({ item }) {
+function PasswordItem({ item, onDelete, onCopy }) {
+    const [isPasswordVisible, setPasswordVisible] = useState(false);
+
     return (
         <div className="password-item">
             <div className="site-icon">{item.platform[0]}</div>
@@ -236,10 +254,15 @@ function PasswordItem({ item }) {
                 <p>{item.username}</p>
                 <div className="password-field">
                     <input
-                        type="password"
+                        type={isPasswordVisible ? 'text' : 'password'}
                         value={item.password}
                         readOnly
                     />
+                    <button onClick={() => setPasswordVisible(!isPasswordVisible)}>
+                        {isPasswordVisible ? 'Hide' : 'Show'}
+                    </button>
+                    <button onClick={() => onCopy(item.password)}>Copy</button>
+                    <button onClick={() => onDelete(item.id)}>Delete</button>
                 </div>
             </div>
         </div>
