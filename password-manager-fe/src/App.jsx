@@ -113,9 +113,9 @@ function App() {
         }
     };
 
-    const handleDeletePassword = async (id) => {
+    const handleDeletePassword = async (platform) => {
         try {
-            const response = await fetch(`/api/passwords/delete/${id}`, {
+            const response = await fetch(`/api/passwords/delete/platform/${platform}`, {
                 method: 'DELETE',
                 headers: {
                     'Content-Type': 'application/json',
@@ -124,9 +124,10 @@ function App() {
             });
 
             if (response.ok) {
-                setPasswords((prev) => prev.filter((password) => password.id !== id));
+                setPasswords((prev) => prev.filter((password) => password.platform !== platform));
             } else {
-                throw new Error('Failed to delete password');
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Failed to delete password');
             }
         } catch (error) {
             setError(error.message);
@@ -262,7 +263,7 @@ function PasswordItem({ item, onDelete, onCopy }) {
                         {isPasswordVisible ? 'Hide' : 'Show'}
                     </button>
                     <button onClick={() => onCopy(item.password)}>Copy</button>
-                    <button onClick={() => onDelete(item.id)}>Delete</button>
+                    <button onClick={() => onDelete(item.platform)}>Delete</button>
                 </div>
             </div>
         </div>

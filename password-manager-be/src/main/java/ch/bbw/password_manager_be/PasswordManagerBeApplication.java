@@ -84,8 +84,8 @@ public class PasswordManagerBeApplication {
 			}
 		}
 
-		@DeleteMapping("/passwords/delete/{id}")
-		public Map<String, Object> deletePassword(@PathVariable String id, @RequestBody Map<String, String> payload) {
+		@DeleteMapping("/passwords/delete/platform/{platform}")
+		public Map<String, Object> deletePasswordByPlatform(@PathVariable String platform, @RequestBody Map<String, String> payload) {
 			String user = payload.get("user");
 
 			try {
@@ -93,10 +93,14 @@ public class PasswordManagerBeApplication {
 
 				if (database.containsKey(user)) {
 					List<Map<String, Object>> userData = (List<Map<String, Object>>) ((Map<String, Object>) database.get(user)).get("data");
-					userData.removeIf(password -> password.get("id").toString().equals(id));
+					boolean removed = userData.removeIf(password -> platform.equals(password.get("platform")));
 
-					writeDatabase(database);
-					return Map.of("success", true);
+					if (removed) {
+						writeDatabase(database);
+						return Map.of("success", true);
+					} else {
+						return Map.of("success", false, "message", "Platform not found");
+					}
 				}
 				return Map.of("success", false, "message", "User not found");
 			} catch (IOException e) {
