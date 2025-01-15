@@ -1,5 +1,6 @@
 package ch.bbw.password_manager_be;
 
+import org.owasp.validator.html.*;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
@@ -52,9 +53,13 @@ public class PasswordManagerBeApplication {
 		}
 
 		@PostMapping("/passwords/add")
-		public Map<String, Object> addPassword(@RequestBody Map<String, Object> payload) {
+		public Map<String, Object> addPassword(@RequestBody Map<String, Object> payload) throws PolicyException, ScanException {
 			String user = (String) payload.get("user");
 			Map<String, Object> newPassword = (Map<String, Object>) payload.get("newPassword");
+
+			Policy policy = Policy.getInstance(PasswordManagerBeApplication.class.getResourceAsStream("/antisamy-tinymce.xml"));
+			AntiSamy antiSamy = new AntiSamy();
+			CleanResults cr = antiSamy.scan(newPassword.toString(), policy);
 
 			try {
 				Map<String, Object> database = readDatabase();
